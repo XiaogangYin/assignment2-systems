@@ -53,3 +53,9 @@ extend-select = ["UP"]
 ignore = [
     "F722"
 ]
+
+[install]
+index-urls = [
+    "https://pypi.tuna.tsinghua.edu.cn/simple",
+    "https://mirrors.aliyun.com/pypi/simple/",
+]
