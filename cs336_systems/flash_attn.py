@@ -54,4 +54,18 @@ class FlashAttnPytorch(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        raise NotImplementedError
+        L, Q, K, V, O = ctx.saved_tensors
+        d = Q.size(-1)
+
+        scale = 1 / (d ** 0.5)
+        S = einsum(Q, K, " ... queries d_k, ... keys d_k -> ... queries keys") * scale
+
+        P = torch.exp(S - L[..., None])
+        D = torch.sum(O * grad_output, dim=-1)
+        dV = P.transpose(1, 2) @ grad_output
+        dP = grad_output @ V.transpose(1, 2)
+        dS = P * (dP - D[..., None])
+        dQ = dS @ K * scale
+        dK = dS.transpose(1, 2) @ Q * scale
+
+        return dQ, dK, dV, None
