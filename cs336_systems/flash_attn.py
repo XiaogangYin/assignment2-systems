@@ -8,8 +8,8 @@ class FlashAttnPytorch(torch.autograd.Function):
     def forward(ctx, Q, K, V, is_causal=False):
         bq = 64
         bk = 64
-        i = torch.arange(0, bq)[:, None]
-        j = torch.arange(0, bk)[None, :]
+        i = torch.arange(0, bq, device=Q.device)[:, None]
+        j = torch.arange(0, bk, device=Q.device)[None, :]
         mask = i < j
 
         n_queries, D = Q.shape[-2:]
