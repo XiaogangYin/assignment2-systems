@@ -81,9 +81,9 @@ def flash_attn_fwd_kernel(
     x = tl.cdiv(N_QUERIES, K_TILE_SIZE)
     if is_causal:
         x = tl.cdiv((query_tile_index + 1) * Q_TILE_SIZE, K_TILE_SIZE)
-    i = tl.arange(0, Q_TILE_SIZE)[None, :]
-    j = tl.arange(0, Q_TILE_SIZE)[:, None]
-    mask = i > j
+    i = tl.arange(0, Q_TILE_SIZE)[:, None]
+    j = tl.arange(0, K_TILE_SIZE)[None, :]
+    mask = i < j
 
     for i in range(x):
         k = tl.load(K_block_ptr, boundary_check=(0, 1), padding_option="zero")
