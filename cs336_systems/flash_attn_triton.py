@@ -1,4 +1,5 @@
 import torch
+from einops import rearrange
 
 import triton
 import triton.language as tl
@@ -78,12 +79,14 @@ def flash_attn_fwd_kernel(
     m = tl.full((Q_TILE_SIZE,), float("-inf"), dtype=tl.float32)
 
     q = tl.load(Q_block_ptr, boundary_check=(0, 1), padding_option="zero")
-    x = tl.cdiv(N_QUERIES, K_TILE_SIZE)
-    if is_causal:
-        x = tl.cdiv((query_tile_index + 1) * Q_TILE_SIZE, K_TILE_SIZE)
+
     i = tl.arange(0, Q_TILE_SIZE)[:, None]
     j = tl.arange(0, K_TILE_SIZE)[None, :]
     mask = i < j
+
+    x = tl.cdiv(N_QUERIES, K_TILE_SIZE)
+    if is_causal:
+        x = tl.cdiv((query_tile_index + 1) * Q_TILE_SIZE, K_TILE_SIZE)
 
     for i in range(x):
         k = tl.load(K_block_ptr, boundary_check=(0, 1), padding_option="zero")
@@ -109,18 +112,25 @@ def flash_attn_fwd_kernel(
 class FlashAttnTriton(torch.autograd.Function):
     @staticmethod
     def forward(ctx, Q, K, V, is_causal=False):
-        batch_size, n_queries, D = Q.shape
-        _, n_keys, _ = K.shape
+        n_queries, D = Q.shape[-2:]
+        n_keys = K.shape[-2]
         scale = 1 / (D ** 0.5)
+
+        old_Q = Q
+        old_K = K
+        old_V = V
+        Q = rearrange(Q, "... n d -> (...) n d")
+        K = rearrange(K, "... n d -> (...) n d")
+        V = rearrange(V, "... n d -> (...) n d")
 
         ctx.Q_TILE_SIZE = 64
         ctx.K_TILE_SIZE = 64
         ctx.D = D
         ctx.is_causal = is_causal
         O = torch.zeros_like(Q)
-        L = torch.zeros(batch_size, n_queries, device=Q.device)
+        L = torch.zeros(Q.shape[:-1], device=Q.device)
 
-        flash_attn_fwd_kernel[(triton.cdiv(n_queries, ctx.Q_TILE_SIZE), batch_size)](Q, K, V,
+        flash_attn_fwd_kernel[(triton.cdiv(n_queries, ctx.Q_TILE_SIZE), Q.shape[0])](Q, K, V,
                               O, L,
                               Q.stride(-3), Q.stride(-2), Q.stride(-1),
                               K.stride(-3), K.stride(-2), K.stride(-1),
@@ -132,7 +142,9 @@ class FlashAttnTriton(torch.autograd.Function):
                               ctx.D, ctx.Q_TILE_SIZE, ctx.K_TILE_SIZE,
                               ctx.is_causal,
                               )
-        ctx.save_for_backward(L, Q, K, V, O)
+        L = L.view(old_Q.shape[:-1])
+        O = O.view(old_Q.shape)
+        ctx.save_for_backward(L, old_Q, old_K, old_V, O)
         return O
 
     @staticmethod
