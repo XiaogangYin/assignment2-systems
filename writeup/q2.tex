@@ -1,9 +1,10 @@
+
 \titledquestion{Distributed Data Parallel Training}[42] 
 \begin{parts}
     
   \part[5] \textbf{Problem (distributed\_communication\_single\_node)}
 
-    Write a script to benchmark the runtime of the all-reduce operation in the single-node multi-process
+    \quad\quad Write a script to benchmark the runtime of the all-reduce operation in the single-node multi-process
     setup. The example code above may provide a reasonable starting point. Experiment with varying the
     following settings:
     \newline
@@ -14,8 +15,8 @@
     \textbf{Number of processes:} 2, 4, or 6 processes.
     \newline
     \textbf{Resource requirements:} Up to 6 GPUs. Each benchmarking run should take less than 5 minutes.
-    \newline
-    \textbf{Deliverable:} Plot(s) and/or table(s) comparing the various settings, with 2-3 sentences of 
+
+    \quad\quad \textbf{Deliverable:} Plot(s) and/or table(s) comparing the various settings, with 2-3 sentences of 
         commentary about your results and thoughts about how the various factors interact.
 
           \ifans{On  MacBook pro 2020, use  Gloo + CPU, Use  \newline
@@ -39,14 +40,54 @@
         \end{tabular} \newline
         Increasing the number of processes does not necessarily reduce the runtime, especially when dealing with large amounts of data such as 1GB. Adding more processes may even increase the all‑reduce runtime, possibly due to the significant time consumed by data transmission between processes.
 
-        About NCCL + GPU, I have enough gpus nows.}
+        About NCCL + GPU, I have not enough gpus nows.}
     
     \part[5] \textbf{Problem (naive\_ddp)}
 
-        \textbf{Deliverable:} Write a script to naively perform distributed data parallel training by all-reducing individual parameter gradients after the backward pass. To verify the correctness of your DDP implementation,
+        \quad\quad\textbf{Deliverable:} Write a script to naively perform distributed data parallel training by all-reducing individual parameter gradients after the backward pass. To verify the correctness of your DDP implementation,
         use it to train a small toy model on randomly-generated data and verify that its weights
         match the results from single-process training.
 
+        \ifans{cs336\_systems/naive\_ddp.py}
 
+    \part[3] \textbf{Problem (naive\_ddp\_benchmarking)}
 
+        \quad\quad In this naïve DDP implementation, parameters are individually all-reduced across ranks after each
+        backward pass. To better understand the overhead of data parallel training, create a script to benchmark
+        your previously-implemented language model when trained with this naïve implementation of
+        DDP. Measure the total time per training step and the proportion of time spent on communicating
+        gradients. Collect measurements in the single-node setting (1 node x 2 GPUs) for the XL model size
+        described in \S1.1.2.
+
+        \quad\quad \textbf{Deliverable:} A description of your benchmarking setup, along with the measured time per training iteration and time spent communicating gradients for each setting.
+
+        \ifans{cs336\_systems/naive\_ddp\_benchmarking.py. Using Gloo + CPU and small model size, in my Macbook pro 2020, The the measured time per training iteration is 14.94s, the time spent communicating gradients for each setting is 0.6997, about 4.68\%
+         }
+            %lstlisting need be out of ifans
+            \begin{lstlisting}[language=Python]
+            3, total time: 14.948427969999988, reduce time: 0.6959458242000209
+            1, total time: 14.94459973039999, reduce time: 0.7210226140000031
+            2, total time: 14.9476707444, reduce time: 0.6712903046000065
+            0, total time: 14.927452500999982, reduce time: 0.7106147133999798
+            \end{lstlisting}
+
+    \part[2] \textbf{Problem (minimal\_ddp\_flat\_benchmarking)}
+        \quad\quad Modify your minimal DDP implementation to communicate a tensor with flattened gradients from
+        all parameters. Compare its performance with the minimal DDP implementation that issues an allreduce
+        for each parameter tensor under the previously-used conditions (1 node x 2 GPUs, XL model
+        size as described in \S1.1.2).
+        
+        \quad\quad \textbf{Deliverable:} The measured time per training iteration and time spent communicating gradients
+        under distributed data parallel training with a single batched all-reduce call. 1-2 sentences comparing
+        the results when batching vs. individually communicating gradients.
+
+        \ifans{cs336\_systems/minimal\_ddp\_flat\_benchmarking.py. Using Gloo + CPU and small model size, in my Macbook pro 2020, The the measured time per training iteration is 23.3792s, the time spent communicating gradients for each setting is 1.51746, about 6.49\%. Because small model size and cpu, Using flat increase the overhead.
+         }
+            %lstlisting need be out of ifans
+            \begin{lstlisting}[language=Python]
+            2, total time: 23.38606446599988, reduce time: 1.5045228166001834
+            1, total time: 23.372208501200113, reduce time: 1.5014608585999667
+            3, total time: 23.36522756079994, reduce time: 1.580048452200208
+            0, total time: 23.39337175940018, reduce time: 1.483804502199746
+            \end{lstlisting}
 \end{parts}
