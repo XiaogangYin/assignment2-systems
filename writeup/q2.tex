@@ -1,0 +1,52 @@
+\titledquestion{Distributed Data Parallel Training}[42] 
+\begin{parts}
+    
+  \part[5] \textbf{Problem (distributed\_communication\_single\_node)}
+
+    Write a script to benchmark the runtime of the all-reduce operation in the single-node multi-process
+    setup. The example code above may provide a reasonable starting point. Experiment with varying the
+    following settings:
+    \newline
+    \textbf{Backend + device type:} Gloo + CPU, NCCL + GPU.
+    \newline
+    \textbf{all-reduce data size:} float32 data tensors ranging over 1MB, 10MB, 100MB, 1GB.
+    \newline
+    \textbf{Number of processes:} 2, 4, or 6 processes.
+    \newline
+    \textbf{Resource requirements:} Up to 6 GPUs. Each benchmarking run should take less than 5 minutes.
+    \newline
+    \textbf{Deliverable:} Plot(s) and/or table(s) comparing the various settings, with 2-3 sentences of 
+        commentary about your results and thoughts about how the various factors interact.
+
+          \ifans{On  MacBook pro 2020, use  Gloo + CPU, Use  \newline
+          \begin{tabular}{lll}
+        \toprule
+        data size & world size & run time \\
+        \midrule
+        1M & 2 & 0.0033 \\
+        1M & 4 & 0.0019 \\
+        1M & 6 & 0.0048 \\
+        10M & 2 & 0.0112 \\
+        10M & 4 & 0.0105 \\
+        10M & 6 & 0.0113 \\
+        100M & 2 & 0.0795 \\
+        100M & 4 & 0.1029 \\
+        100M & 6 & 0.1302 \\
+        1G & 2 & 0.7987 \\
+        1G & 4 & 1.0348 \\
+        1G & 6 & 1.2857 \\
+        \bottomrule
+        \end{tabular} \newline
+        Increasing the number of processes does not necessarily reduce the runtime, especially when dealing with large amounts of data such as 1GB. Adding more processes may even increase the all‑reduce runtime, possibly due to the significant time consumed by data transmission between processes.
+
+        About NCCL + GPU, I have enough gpus nows.}
+    
+    \part[5] \textbf{Problem (naive\_ddp)}
+
+        \textbf{Deliverable:} Write a script to naively perform distributed data parallel training by all-reducing individual parameter gradients after the backward pass. To verify the correctness of your DDP implementation,
+        use it to train a small toy model on randomly-generated data and verify that its weights
+        match the results from single-process training.
+
+
+
+\end{parts}

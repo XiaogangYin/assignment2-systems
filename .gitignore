@@ -35,6 +35,14 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+*.log
+*.out
+.DS_Store
+.idea
+
+# latex
+_minted-main/
+main.synctex.gz
 
 # Installer logs
 pip-log.txt
@@ -42,6 +50,7 @@ pip-delete-this-directory.txt
 
 # Unit test / coverage reports
 htmlcov/
+tmp/
 .tox/
 .nox/
 .coverage
