@@ -90,4 +90,179 @@
             3, total time: 23.36522756079994, reduce time: 1.580048452200208
             0, total time: 23.39337175940018, reduce time: 1.483804502199746
             \end{lstlisting}
+
+    \part[5] \textbf{Problem (ddp\_overlap\_individual\_parameters)}
+        \quad\quad Implement a Python class to handle distributed data parallel training. The class should wrap
+        an arbitrary PyTorch nn.Module and take care of broadcasting the weights before training (so all
+        ranks have the same initial parameters) and issuing communication calls for gradient averaging. We
+        recommend the following public interface:
+        \begin{lstlisting}[language=Python]
+        def __init__(self, module: torch.nn.Module): 
+        """
+        Given an instantiated PyTorch nn.Module to be
+        parallelized, construct a DDP container that will handle gradient synchronization across ranks.
+        """
+        def forward(self, *inputs, **kwargs):
+        """
+        Calls the wrapped module’s forward() method with the provided positional and keyword arguments.
+        """
+        def finish_gradient_synchronization(self): 
+        """
+        When called, wait for asynchronous communication calls to be queued on GPU.
+        """
+        \end{lstlisting}
+        \quad\quad To use this class to perform distributed training, we’ll pass it a module to wrap, and then add a call to finish\_gradient\_synchronization() before we run optimizer.step() to ensure that the optimizer step, an operation that depends on the gradients, may be queued:
+        \begin{lstlisting}[language=Python]
+        model = ToyModel().to(device)
+        ddp_model = DDP(model)
+        for _ in range(train_steps):
+            x, y = get_batch()
+            logits = ddp_model(x)
+            loss = loss_fn(logits, y)
+            loss.backward()
+            ddp_model.finish_gradient_synchronization()
+            optimizer.step()
+        \end{lstlisting}
+
+        \quad\quad \textbf{Deliverable:}\ Implement a container class to handle distributed data parallel training. This
+        class should overlap gradient communication and the computation of the backward pass. To test
+        your DDP class, first implement the adapters [adapters.get\_ddp\_individual\_parameters] and
+        [adapters.ddp\_individual\_parameters\_on\_after\_backward] (the latter is optional, depending on
+        your implementation you may not need it).
+
+        \quad\quad Then, to execute the tests, run uv run pytest tests/test\_ddp\_individual\_parameters.py. We recommend running the tests multiple times (e.g., 5) to ensure that it passes reliably.
+
+        \ifans{cs336\_systems/ddp.py}
+
+    \part[1] \textbf{Problem (ddp\_overlap\_individual\_parameters\_benchmarking)}
+        \begin{subparts} 
+            \subpart Benchmark the performance of your DDP implementation when overlapping backward pass computation with communication of individual parameter gradients. Compare its performance with our previously-studied settings (the minimal DDP implementation that either issues an all-reduce for each parameter tensor, or a single all-reduce on the concatenation of all parameter tensors) with the same setup: 1 node, 2 GPUs, and the XL model size described in \S 1.1.2.
+
+            \textbf{Deliverable:}\ The measured time per training iteration when overlapping the backward pass with communication of individual parameter gradients, with 1-2 sentences comparing the results.
+
+            \ifans{cs336\_systems/ddp\_overlap\_individual\_parameters\_benchmarking.py. Using Gloo + CPU and small model size, in my Macbook pro 2020, The the measured time per training iteration is 15.4635s, the time spent communicating gradients for each setting is  0.736289 s, about  4.76147 \% . The time spent communicating gradients ...}
+            %lstlisting need be out of ifans
+            \begin{lstlisting}[language=Python]
+            3, total time: 15.46724196474861, reduce time: 0.7726576314998965
+            2, total time: 15.461637291249644, reduce time: 0.7224488822494095
+            1, total time: 15.46450111025024, reduce time: 0.7475921859995651
+            0, total time: 15.460556565501065, reduce time: 0.7024589765005658
+            \end{lstlisting}
+            
+            \subpart Instrument your benchmarking code (using the 1 node, 2 GPUs, XL model size setup) with the
+            Nsight profiler, comparing between the initial DDP implementation and this DDP implementation
+            that overlaps backward computation and communication. Visually compare the two traces,
+            and provide a profiler screenshot demonstrating that one implementation overlaps compute with
+            communication while the other doesn’t.
+
+            \textbf{Deliverable:}\ 2 screenshots (one from the initial DDP implementation, and another from this
+            DDP implementation that overlaps compute with communication) that visually show that communication
+            is or isn’t overlapped with the backward pass.
+
+            \ifans{to be done. I do not have 2 gpus now.}
+        \end{subparts}
+    \part[8] \textbf{Problem (ddp\_overlap\_bucketed)}
+        \quad\quad Implement a Python class to handle distributed data parallel training, using gradient bucketing to
+        improve communication efficiency. The class should wrap an arbitrary input PyTorch nn.Module and
+        take care of broadcasting the weights before training (so all ranks have the same initial parameters) and
+        issuing bucketed communication calls for gradient averaging. We recommend the following interface:
+        \begin{lstlisting}[language=Python]
+        def __init__(self, module: torch.nn.Module, bucket_size_mb: float): 
+        """
+        Given an instantiated
+        PyTorch nn.Module to be parallelized, construct a DDP container that will handle gradient synchronization
+        across ranks. Gradient synchronization should be bucketed, with each bucket holding
+        at most bucket_size_mb of parameters.
+        """
+        def forward(self, *inputs, **kwargs): 
+        """
+        Calls the wrapped module’s forward() method with the
+        provided positional and keyword arguments.
+        """
+        def finish_gradient_synchronization(self):
+        """
+        When called, wait for asynchronous communication
+        calls to be queued on GPU.
+        """
+        \end{lstlisting}
+
+        \quad\quad Beyond the addition of a bucket\_size\_mb initialization parameter, this public interface matches
+        the interface of our previous DDP implementation that individually communicated each parameter.
+        We suggest allocating parameters to buckets using the reverse order of model.parameters(), since the
+        gradients will become ready in approximately that order during the backward pass.
+
+        \quad\quad \textbf{Deliverable:}\ Implement a container class to handle distributed data parallel training. This class
+        should overlap gradient communication and the computation of the backward pass. Gradient communication
+        should be bucketed, to reduce the total number of communication calls. To test your implementation,
+        complete [adapters.get\_ddp\_bucketed], [adapters.ddp\_bucketed\_on\_after\_backward],
+        and [adapters.ddp\_bucketed\_on\_train\_batch\_start] (the latter two are optional, depending on
+        your implementation you may not need them).
+
+        \quad\quad Then, to execute the tests, run pytest tests/test\_ddp.py. We recommend running the tests
+        multiple times (e.g., 5) to ensure that it passes reliably.
+
+        \ifans{cs336\_systems/ddp.py}
+
+    \part[3] \textbf{Problem (ddp\_bucketed\_benchmarking)}
+        \begin{subparts}
+          \subpart Benchmark your bucketed DDP implementation using the same config as the previous experiments
+        (1 node, 2 GPUs, XL model size), varying the maximum bucket size (1, 10, 100, 1000 MB).
+        Compare your results to the previous experiments without bucketing—do the results align with
+        your expectations? If they don’t align, why not? You may have to use the PyTorch profiler as
+        necessary to better understand how communication calls are ordered and/or executed. What
+        changes in the experimental setup would you expect to yield results that are aligned with your
+        expectations?
+
+        \textbf{Deliverable:}\ Measured time per training iteration for various bucket sizes. 3-4 sentence commentary
+        about the results, your expectations, and potential reasons for any mismatch.
+
+        \ifans{cs336\_systems/ddp\_bucketed\_benchmarking.py. Using Gloo + CPU and small model size, in my Macbook pro 2020, The the measured time per training iteration is 15.3479s, the time spent communicating gradients for each setting is 0.738696s, about 4.81301\% . Because of cpu, no comment.}
+        
+        \begin{lstlisting}[language=Python]
+        3, total time: 15.350618762498925, reduce time: 0.7534022687495963
+        2, total time: 15.347716027498791, reduce time: 0.7388711377498112
+        1, total time: 15.342720182749872, reduce time: 0.7461342754995712
+        0, total time: 15.350642050000715, reduce time: 0.716377919748993
+        \end{lstlisting}
+
+        \subpart Assume that the time it takes to compute the gradients for a bucket is identical to the time it
+        takes to communicate the gradient buckets. Write an equation that models the communication
+        overhead of DDP (i.e., the amount of additional time spent after the backward pass) as a function
+        31
+        of the total size (bytes) of the model parameters (s), the all-reduce algorithm bandwidth (w,
+        computed as the size of each rank’s data divided by the time it takes to finish the all-reduce), the
+        overhead (seconds) associated with each communication call (o), and the number of buckets ($n_b$).
+        From this equation, write an equation for the optimal bucket size that minimizes DDP overhead.
+
+        \textbf{Deliverable:}\ Equation that models DDP overhead, and an equation for the optimal bucket size.
+
+        \ifans{
+        $s_b = \frac{s}{n_b}$: Size of each bucket
+        The total transfer latency across $n_b$ buckets is:
+            \[
+            n_b \cdot \frac{s_b}{w} = n_b \cdot \frac{s}{n_b \cdot w} = \frac{s}{w}
+            \]
+
+            The total fixed overhead across $n_b$ calls is:
+            \[
+            n_b \cdot o
+            \]
+
+            Thus, the total DDP communication overhead equation is:
+            \[
+            T(n_b) = \frac{s}{w} + n_b \cdot o
+            \]
+
+            \section{Optimal Bucket Size}
+            To derive the optimal bucket size $s_b^*$, substitute $n_b = \frac{s}{s_b}$ into the overhead equation:
+            \[
+            T(s_b) = \frac{s}{w} + \frac{s \cdot o}{s_b}
+            \]
+
+            The derivative of $T(s_b)$ with respect to $s_b$ is negative for all positive $s_b$, indicating $T(s_b)$ decreases as $s_b$ increases. Constrained by the maximum feasible bucket size $s_{\text{max}}$ (limited by GPU memory), the optimal bucket size is:
+            \[
+            s_b^* = \min\left(s_{\text{max}}, s\right)
+            \]
+        }
+        \end{subparts}
 \end{parts}
