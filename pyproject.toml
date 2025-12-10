@@ -6,13 +6,18 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "requests>=2.32.3",
-    "torch>=2.7.0",
+    "scipy",
+    "jupyter",
+    "matplotlib",
+    "torch>=2.7.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "torch~=2.2.2; sys_platform == 'darwin' and platform_machine == 'x86_64'", # Intel Macs
 ]
 
 [tool.uv]
 package = true
 python-preference = "managed"
-
+index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+allow-insecure-host = ["pypi.tuna.tsinghua.edu.cn"]
 
 [tool.setuptools.packages.find]
 include = ["cs336_basics"]

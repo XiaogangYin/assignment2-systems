@@ -1,0 +1,74 @@
+\titledquestion{Optimizer State Sharding}[20] 
+\begin{parts}
+
+    
+    \part[15] \textbf{Problem (optimizer\_state\_sharding)}\newline
+        \quad\quad Implement a Python class to handle optimizer state sharding. The class should wrap an arbitrary input
+        PyTorch \textbf{optim.Optimizer} and take care of synchronizing updated parameters after each optimizer
+        step. We recommend the following public interface:
+        \begin{lstlisting}[language=Python]
+        def __init__(self, params, optimizer_cls: Type[Optimizer], **kwargs: Any):
+        r""" 
+        Initializes the
+        sharded state optimizer. params is a collection of parameters to be optimized (or parameter
+        groups, in case the user wants to use different hyperparameters, such as learning rates, for different
+        parts of the model); these parameters will be sharded across all the ranks. The optimizer_cls
+        parameter specifies the type of optimizer to be wrapped (e.g., optim.AdamW). Finally, any remaining
+        keyword arguments are forwarded to the constructor of the optimizer_cls. Make sure to
+        call the torch.optim.Optimizer super-class constructor in this method.
+        """
+
+        def step(self, closure, **kwargs):
+        r""" 
+        Calls the wrapped optimizer’s step() method with the provided
+        closure and keyword arguments. After updating the parameters, synchronize with the other
+        ranks.
+        """
+
+        def add_param_group(self, param_group: dict[str, Any]): 
+        r""" 
+        This method should add a parameter
+        group to the sharded optimizer. This is called during construction of the sharded optimizer by
+        the super-class constructor and may also be called during training (e.g., for gradually unfreezing
+        layers in a model). As a result, this method should handle assigning the model’s parameters
+        among the ranks.
+        """
+        \end{lstlisting}
+        \quad\quad \textbf{Deliverable:}\ Implement a container class to handle optimizer state sharding. To test your sharded
+        optimizer, first implement the adapter [adapters.get\_sharded\_optimizer]. Then, to execute the
+        tests, run uv run pytest tests/test\_sharded\_optimizer.py. We recommend running the tests
+        multiple times (e.g., 5) to ensure that it passes reliably.
+
+        \ifans{cs336\_systems/ddp.py, class ShardedOptimizer which maybe need to be repaired. }
+
+    \part[5] \textbf{Problem ((optimizer\_state\_sharding\_accounting)}
+        \begin{subparts}
+          \subpart Create a script to profile the peak memory usage when training language models with and without
+            optimizer state sharding. Using the standard configuration (1 node, 2 GPUs, XL model size),
+            report the peak memory usage after model initialization, directly before the optimizer step, and
+            directly after the optimizer step. Do the results align with your expectations? Break down the
+            memory usage in each setting (e.g., how much memory for parameters, how much for optimizer
+            states, etc.).
+
+            \textbf{Deliverable:}\ 2-3 sentence response with peak memory usage results and a breakdown of how
+            the memory is divided between different model and optimizer components.
+
+            \ifans{to be done}
+
+          \subpart How does our implementation of optimizer state sharding affect training speed? Measure the time
+            taken per iteration with and without optimizer state sharding for the standard configuration (1
+            node, 2 GPUs, XL model size).
+
+            \textbf{Deliverable}: 2-3 sentence response with your timings.
+
+            \ifans{to be done}
+
+          \subpart How does our approach to optimizer state sharding differ from ZeRO stage 1 (described as ZeRODP
+            Pos in Rajbhandari et al., 2020)?
+
+            \textbf{Deliverable}: 2-3 sentence summary of any differences, especially those related to memory and
+            communication volume.
+
+            \ifans{We ignore "ReduceScatter the gradients", we shard the optimizer state by the number, not by size.(to be done)}
+        \end{subparts}
+\end{parts}

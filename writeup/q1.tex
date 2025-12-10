@@ -1,0 +1,51 @@
+\titledquestion{Scaling Laws Review}[5] 
+\begin{parts}
+
+    
+    \part[5] Problem (chinchilla\_isoflops)\newline
+        \quad\quad Write a script to reproduce the IsoFLOPs method describe above for fitting scaling laws using
+        the final training loss from a set of training runs. For this problem, use the (synthetic) data from
+        training runs given in the file data/isoflops\_curves.json. This file contains a JSON array, where
+        each element is an object describing a training run. Here are the first two runs for illustrating the
+        format:
+        \begin{lstlisting}[language=Python]
+            [
+                {
+                "parameters": 49999999,
+                "compute_budget": 6e+18,
+                "final_loss": 7.192784500319437
+                },
+                {
+                "parameters": 78730505,
+                "compute_budget": 6e+18,
+                "final_loss": 6.750171320661809
+                },
+                ...
+            ]
+        \end{lstlisting}
+        For fitting the scaling laws, the scipy package (and scipy.optimize.curve\_fit in particular)
+        might be useful, but you’re welcome to use any curve fitting method you’d like. While Hoffmann et al.
+        [2022] fits a quadratic function to each IsoFLOP profile to find its minimum, we instead recommend
+        you simply take the run with the lowest training loss for each compute budget as the minimum.
+        \begin{subparts}
+
+            \subpart Show your extrapolated compute-optimal model size, together with the ⟨Ci,Nopt(Ci)⟩ points you
+            obtained. What is your predicted optimal model size for a budget of $10^{23}$ FLOPs? What about for $10^{24}$ FLOPs?
+
+            \textbf{Deliverable}: A plot showing your scaling law for model size by compute budget, showing the
+            data points used to fit the scaling law and extrapolating up to at least $10^{24}$ FLOPs. Then, a
+            one-sentence response with your predicted optimal model size.
+              
+                
+            \subpart Show your extrapolated compute-optimal dataset size, together with the ⟨Ci,Dopt(Ci)⟩ data
+            points from the training runs. What is your predicted optimal dataset size for budgets of $10^{23}$
+            and $10^{24}$ FLOPs?
+            \textbf{Deliverable}: A plot showing your scaling law for dataset size by compute budget, showing the
+            data points used to fit the scaling law and extrapolating up to at least $10^{24}$ FLOPs. Then, a
+            one-sentence response with your predicted optimal dataset size.
+                \end{subparts}
+        
+        
+            
+
+\end{parts}
